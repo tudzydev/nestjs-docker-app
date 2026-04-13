@@ -60,6 +60,7 @@ pipeline {
         // กำหนดค่าสำหรับจำลอง PROD environment บน Local
         PROD_APP_NAME             = "nestjs-app-prod"
         PROD_HOST_PORT            = "7000"
+        PROD_FALLBACK_HOST_PORT   = "7002"
     }
 
     // กำหนด input parameters สำหรับเลือก Action (Build & Deploy หรือ Rollback)
@@ -175,7 +176,7 @@ pipeline {
             }
             steps {
                 timeout(time: 1, unit: 'HOURS') {
-                    input message: "Deploy image tag '${env.IMAGE_TAG}' to PRODUCTION (Local Docker on port ${PROD_HOST_PORT})?"
+                    input message: "Deploy image tag '${env.IMAGE_TAG}' to PRODUCTION (Local Docker on port ${PROD_HOST_PORT}, fallback ${PROD_FALLBACK_HOST_PORT})?"
                 }
             }
         }
@@ -189,12 +190,21 @@ pipeline {
             } 
             steps {
                 script {
+                    def deployPort = sh(script: """
+                        if lsof -iTCP:${PROD_HOST_PORT} -sTCP:LISTEN >/dev/null 2>&1; then
+                          echo ${PROD_FALLBACK_HOST_PORT}
+                        else
+                          echo ${PROD_HOST_PORT}
+                        fi
+                    """, returnStdout: true).trim()
+                    env.DEPLOY_PROD_HOST_PORT = deployPort
+
                     def deployCmd = """
-                            echo "Deploying container ${PROD_APP_NAME} from latest image..."
+                            echo "Deploying container ${PROD_APP_NAME} from latest image on port ${deployPort}..."
                             docker pull ${DOCKER_REPO}:${env.IMAGE_TAG}
                             docker stop ${PROD_APP_NAME} || true
                             docker rm ${PROD_APP_NAME} || true
-                            docker run -d --name ${PROD_APP_NAME} -p ${PROD_HOST_PORT}:3000 ${DOCKER_REPO}:${env.IMAGE_TAG}
+                            docker run -d --name ${PROD_APP_NAME} -p ${deployPort}:3000 ${DOCKER_REPO}:${env.IMAGE_TAG}
                             docker ps --filter name=${PROD_APP_NAME} --format "table {{.Names}}\\t{{.Image}}\\t{{.Status}}"
                         """
                     sh deployCmd
@@ -203,7 +213,7 @@ pipeline {
             // ส่งข้อมูลไปยัง n8n webhook เมื่อ deploy สำเร็จ
             post {
                 success {
-                    sendNotificationToN8n('success', 'Deploy to PRODUCTION (Local Docker)', env.IMAGE_TAG, env.PROD_APP_NAME, env.PROD_HOST_PORT)
+                    sendNotificationToN8n('success', 'Deploy to PRODUCTION (Local Docker)', env.IMAGE_TAG, env.PROD_APP_NAME, env.DEPLOY_PROD_HOST_PORT)
                 }
             }
         }
