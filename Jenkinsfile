@@ -51,7 +51,7 @@ pipeline {
 
         // กำหนดค่า Docker Hub credentials ID ที่ตั้งค่าไว้ใน Jenkins
         DOCKER_HUB_CREDENTIALS_ID = 'dockerhub-cred'
-        DOCKER_REPO               = "iamsamitdev/nestjs-docker-app"
+        DOCKER_REPO               = "phoom005/nestjs-docker-app"
 
         // กำหนดค่าสำหรับจำลอง DEV environment บน Local
         DEV_APP_NAME              = "nestjs-app-dev"
