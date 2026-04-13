@@ -9,6 +9,7 @@ def sendNotificationToN8n(String status, String stageName, String imageTag, Stri
     // ต้องสร้าง Credential นี้ใน Jenkins ก่อนใช้งาน โดยใช้ ID ว่า n8n-webhook
     script {
         withCredentials([string(credentialsId: 'n8n-webhook', variable: 'N8N_WEBHOOK_URL')]) {
+            def approvalNote = (stageName == 'Approval for Production') ? 'กรุณาไปกด Proceed ใน Jenkins เพื่ออนุมัติการ Deploy' : ''
             def payload = [
                 project  : env.JOB_NAME,
                 stage    : stageName,
@@ -17,6 +18,7 @@ def sendNotificationToN8n(String status, String stageName, String imageTag, Stri
                 image    : "${env.DOCKER_REPO}:${imageTag}",
                 container: containerName,
                 url      : "http://localhost:${hostPort}/",
+                note     : approvalNote,
                 timestamp: new Date().format("yyyy-MM-dd'T'HH:mm:ssXXX")
             ]
             def body = groovy.json.JsonOutput.toJson(payload)
@@ -176,7 +178,7 @@ pipeline {
             }
             steps {
                 timeout(time: 1, unit: 'HOURS') {
-                    input message: "Deploy image tag '${env.IMAGE_TAG}' to PRODUCTION (Local Docker on port ${PROD_HOST_PORT}, fallback ${PROD_FALLBACK_HOST_PORT})?"
+                    input message: "Deploy image tag '${env.IMAGE_TAG}' to PRODUCTION (Local Docker on port ${PROD_HOST_PORT}, fallback ${PROD_FALLBACK_HOST_PORT})?\nกรุณาไปกด Proceed ใน Jenkins เพื่ออนุมัติการ Deploy ไป Production"
                 }
             }
         }
