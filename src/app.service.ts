@@ -10,5 +10,9 @@ export class AppService {
   getHealth(): string {
     return 'OK';
   }
+
+  getAbout(): string {
+    return 'about';
+  }
   
 }
